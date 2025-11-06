@@ -764,7 +764,13 @@ const RetailerStockVerification: React.FC = () => {
                         </button>
                         <button
                           onClick={() => {
-                            navigate(`/retailer-stock-verification/rectify/${retailer.retailer_id}`);
+                            setSelectedRectifyStock({
+                              retailerId: retailer.retailer_id,
+                              retailerName: retailer.retailer_name,
+                              distributorName: retailer.distributor_name,
+                              inventory: retailer.inventory
+                            });
+                            setShowRectifyModal(true);
                           }}
                           className="mt-2 text-xs text-purple-600 hover:text-purple-700 hover:underline font-medium w-full text-center"
                         >

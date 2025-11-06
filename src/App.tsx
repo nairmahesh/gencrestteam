@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LoginForm from './components/LoginForm';
+import { AdminLogin } from './components/AdminLogin';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import FieldVisits from './pages/FieldVisits';
@@ -41,10 +42,14 @@ function App() {
   console.log('Auth status:', isAuthenticated);
 
   useEffect(() => {
-    if (!isAuthenticated && location.pathname !== '/') {
+    if (!isAuthenticated && location.pathname !== '/' && location.pathname !== '/admin') {
       navigate('/', { replace: true });
     }
   }, [isAuthenticated, location.pathname, navigate]);
+
+  if (!isAuthenticated && location.pathname === '/admin') {
+    return <AdminLogin />;
+  }
 
   if (!isAuthenticated) {
     return <LoginForm />;

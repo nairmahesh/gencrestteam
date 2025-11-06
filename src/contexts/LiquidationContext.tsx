@@ -791,6 +791,60 @@ export const LiquidationProvider: React.FC<{ children: ReactNode }> = ({ childre
             console.error('Error creating approval request:', err);
           }
 
+          // Save to stock_verification_history for distributor verification
+          try {
+            const skusChecked = (payload.verificationData || []).map((sku: any) => ({
+              sku_code: sku.skuCode || '',
+              sku_name: sku.skuName || sku.name || '',
+              product_name: sku.productName || sku.name || '',
+              product_code: sku.productCode || '',
+              unit: sku.unit || '',
+              old_stock: sku.oldStock || 0,
+              new_stock: sku.newStock || 0,
+              difference: (sku.newStock || 0) - (sku.oldStock || 0),
+              farmer_allocation: sku.farmerQuantity || 0,
+              retailer_allocation: sku.retailerQuantity || 0,
+              allocated_retailers: sku.retailers || []
+            }));
+
+            const photoProofs = (payload.proofUrls || []).map((url: string, index: number) => ({
+              type: 'photo',
+              url: url,
+              name: `photo_${index + 1}.jpg`
+            }));
+
+            if (skusChecked.length > 0) {
+              const { error: historyError } = await supabase
+                .from('stock_verification_history')
+                .insert({
+                  verification_date: new Date().toISOString(),
+                  retailer_id: payload.distributorCode || payload.distributorId || 'unknown',
+                  retailer_name: payload.distributorName || 'Unknown Distributor',
+                  distributor_id: payload.distributorCode || payload.distributorId,
+                  distributor_name: payload.distributorName,
+                  skus_checked: skusChecked,
+                  total_skus_count: skusChecked.length,
+                  verified_by_id: user?.id || 'unknown',
+                  verified_by_name: payload.submittedBy || user?.email || 'Unknown',
+                  verified_by_role: user?.user_metadata?.role || user?.role || 'Staff',
+                  proof_type: payload.signatureUrl && photoProofs.length > 0 ? 'both' : payload.signatureUrl ? 'signature' : 'photo',
+                  signature_image: payload.signatureUrl || null,
+                  proof_photos: photoProofs,
+                  latitude: payload.latitude || null,
+                  longitude: payload.longitude || null,
+                  notes: `Distributor verification - ${skusChecked.length} SKUs checked`
+                });
+
+              if (historyError) {
+                console.error('Error saving distributor verification history:', historyError);
+              } else {
+                console.log('✅ Distributor verification history saved successfully');
+              }
+            }
+          } catch (err) {
+            console.error('Error saving distributor verification history:', err);
+          }
+
           // Update the distributor's lastUpdated timestamp in local state
           const currentTimestamp = new Date().toISOString();
           setState(prev => ({

@@ -155,6 +155,151 @@ const BusinessLogic: React.FC = () => {
       importance: 'High',
       affectedModules: ['Planning', 'MDO Module'],
       implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR011',
+      category: 'Stock Verification',
+      title: 'Multi-SKU Verification Flow',
+      description: 'Verification supports multiple SKUs per retailer with automatic inventory updates',
+      formula: 'For each SKU: Balance Stock = Old Stock - Farmer Allocation - Retailer Allocation',
+      importance: 'Critical',
+      affectedModules: ['Stock Verification', 'Retailer Inventory', 'Stock Transfers'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR012',
+      category: 'Stock Verification',
+      title: 'Verification Proof Requirements',
+      description: 'All verifications require e-signature and optional photo proof with GPS coordinates',
+      importance: 'High',
+      affectedModules: ['Stock Verification', 'Audit Trail'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR013',
+      category: 'Stock Transfers',
+      title: 'Stock Transfer Types',
+      description: 'Four transfer types: distributor_to_retailer, retailer_to_farmer, distributor_to_farmer, retailer_return',
+      formula: 'Transfers are immutable (no updates/deletes allowed)',
+      importance: 'Critical',
+      affectedModules: ['Stock Transfers', 'Inventory Management'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR014',
+      category: 'Stock Transfers',
+      title: 'Retailer Inventory Auto-Update',
+      description: 'Retailer inventory automatically updates based on stock transfers',
+      formula: 'Current Stock = Total Received - Total Sold',
+      importance: 'Critical',
+      affectedModules: ['Retailer Inventory', 'Stock Transfers'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR015',
+      category: 'Product Catalog',
+      title: 'Product SKU Hierarchy',
+      description: 'Three-level hierarchy: Categories → Products → SKUs with unit conversions',
+      example: 'Categories: Biostimulant, Micronutrient, Super Speciality Fertilizer',
+      importance: 'High',
+      affectedModules: ['Product Master', 'Liquidation', 'Inventory'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR016',
+      category: 'Product Catalog',
+      title: 'SKU Unit Conversions',
+      description: 'SKUs have case_size and bag_size for volume-to-unit conversions',
+      formula: 'Units = Volume / Unit Size (e.g., 1000L / 250ml = 4000 units)',
+      importance: 'Medium',
+      affectedModules: ['Product Master', 'Inventory Calculations'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR017',
+      category: 'Geography',
+      title: 'Geographic Hierarchy',
+      description: 'Four-level geography: Zone → Region → State → Territory',
+      example: 'North Zone → North India → Delhi → North Delhi',
+      importance: 'High',
+      affectedModules: ['User Management', 'Reports', 'Filtering'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR018',
+      category: 'Reports',
+      title: 'Liquidation Report Aggregations',
+      description: 'Reports aggregate by Product, SKU, Customer, and Geography with drill-down capability',
+      importance: 'High',
+      affectedModules: ['Reports', 'Dashboard', 'Analytics'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR019',
+      category: 'Security',
+      title: 'Row Level Security (RLS)',
+      description: 'All database tables have RLS enabled. Public users see verified data only, authenticated users have full CRUD',
+      importance: 'Critical',
+      affectedModules: ['Database', 'Security', 'All Modules'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR020',
+      category: 'Database',
+      title: 'Audit Trail Requirements',
+      description: 'All major transactions are immutable with timestamps and GPS coordinates',
+      formula: 'All tables have: created_at, updated_at, created_by, latitude, longitude',
+      importance: 'Critical',
+      affectedModules: ['Database', 'Audit', 'Compliance'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR021',
+      category: 'Admin',
+      title: 'Admin Portal Access',
+      description: 'Separate admin login at /admin with full system access and activity monitoring',
+      example: 'Admin credentials: admin/admin or sfaadmin/sfaadmin',
+      importance: 'High',
+      affectedModules: ['Authentication', 'Security', 'Admin Portal'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR022',
+      category: 'Technical Documentation',
+      title: 'Database Schema Documentation',
+      description: 'Complete database schema documented in Technical Documentation module with all tables, columns, and relationships',
+      importance: 'High',
+      affectedModules: ['Documentation', 'Database'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR023',
+      category: 'Stock Verification',
+      title: 'Verification History Tracking',
+      description: 'Complete history of all verifications with SKU-level details and proof documents stored',
+      importance: 'High',
+      affectedModules: ['Stock Verification', 'Audit Trail', 'History'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR024',
+      category: 'Retailer Management',
+      title: 'Retailer Duplicate Prevention',
+      description: 'Unique constraints on retailer code and phone to prevent duplicates',
+      formula: 'UNIQUE(retailer_code), UNIQUE(phone)',
+      importance: 'High',
+      affectedModules: ['Retailer Management', 'Data Integrity'],
+      implementationStatus: 'Implemented'
+    },
+    {
+      id: 'BR025',
+      category: 'Data Validation',
+      title: 'Stock Quantity Constraints',
+      description: 'All stock quantities must be >= 0. Negative stock prevented by CHECK constraints',
+      formula: 'CHECK (current_stock >= 0)',
+      importance: 'Critical',
+      affectedModules: ['Inventory', 'Stock Management', 'Data Integrity'],
+      implementationStatus: 'Implemented'
     }
   ];
   
@@ -184,7 +329,28 @@ const BusinessLogic: React.FC = () => {
     alert(`Validation Result:\n\nValid: ${result.isValid}\n\nErrors:\n${result.errors.join('\n')}\n\nWarnings:\n${result.warnings.join('\n')}`);
   };
 
-  const categories = ['All', 'Stock Liquidation', 'User Management', 'Approvals', 'Field Visits', 'Performance', 'Financial', 'Travel', 'Planning'];
+  const categories = [
+    'All',
+    'Stock Liquidation',
+    'Stock Verification',
+    'Stock Transfers',
+    'Product Catalog',
+    'Retailer Management',
+    'User Management',
+    'Approvals',
+    'Field Visits',
+    'Performance',
+    'Financial',
+    'Travel',
+    'Planning',
+    'Geography',
+    'Reports',
+    'Security',
+    'Database',
+    'Admin',
+    'Technical Documentation',
+    'Data Validation'
+  ];
 
   const filteredRules = businessRules.filter(rule => {
     const matchesCategory = selectedCategory === 'All' || rule.category === selectedCategory;

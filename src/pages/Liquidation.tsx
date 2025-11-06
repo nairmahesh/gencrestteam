@@ -34,7 +34,6 @@ const Liquidation: React.FC = () => {
   const [searchType, setSearchType] = useState<'distributor' | 'retailer'>('distributor');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<string>('');
@@ -124,7 +123,7 @@ const Liquidation: React.FC = () => {
     }
 
     // Refresh data
-    const filters: any = { search: searchQuery, status: statusFilter, priority: priorityFilter };
+    const filters: any = { search: searchQuery, status: statusFilter };
     if (locationType && locationType !== 'my assignments') filters.type = locationType;
     fetchDistributors(currentPage, pageSize, filters);
 
@@ -143,15 +142,15 @@ const Liquidation: React.FC = () => {
     setTimeout(() => {
       setHighlightedDistributorId(null);
     }, 3000);
-  }, [searchQuery, statusFilter, priorityFilter, locationType, fetchDistributors, currentPage, pageSize]);
+  }, [searchQuery, statusFilter, locationType, fetchDistributors, currentPage, pageSize]);
 
   // 3. Handle page changes (does *not* reset to page 1)
   const handlePageChange = useCallback((page: number) => {
-    const filters: any = { search: searchQuery, status: statusFilter, priority: priorityFilter };
+    const filters: any = { search: searchQuery, status: statusFilter };
     if (locationType && locationType !== 'my assignments') filters.type = locationType
     fetchDistributors(page, pageSize, filters);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [fetchDistributors, pageSize, searchQuery, statusFilter, priorityFilter, locationType]);
+  }, [fetchDistributors, pageSize, searchQuery, statusFilter, locationType]);
 
   // 4. Handle page size changes (triggers the effect in #2)
   const handlePageSizeChange = useCallback((newPageSize: number) => {
@@ -167,9 +166,6 @@ const Liquidation: React.FC = () => {
     setStatusFilter(status);
   }, []);
 
-  const handlePriorityFilterChange = useCallback((priority: string) => {
-    setPriorityFilter(priority);
-  }, []);
 
 
   // This memo is still correct: it recalculates totals for the *visible* distributors
@@ -323,11 +319,9 @@ const Liquidation: React.FC = () => {
         searchType={'distributor'}
         searchQuery={searchQuery}
         statusFilter={statusFilter}
-        priorityFilter={priorityFilter}
         onSearchTypeChange={setSearchType}
         onSearchQueryChange={handleSearchQueryChange}
         onStatusFilterChange={handleStatusFilterChange}
-        onPriorityFilterChange={handlePriorityFilterChange}
       />
 
       {/* Verification Incomplete Alert */}
@@ -402,7 +396,6 @@ const Liquidation: React.FC = () => {
                 territory={distributor.territory}
                 updated={distributor.metrics.lastUpdated}
                 status={distributor.status}
-                priority={distributor.priority}
                 metrics={distributor.metrics}
                 onVerifyStock={() => handleVerifyStock(distributor.id, distributor.distributorCode)}
                 onViewDetails={(metric) => handleDistributorViewDetails(distributor.id, metric)}

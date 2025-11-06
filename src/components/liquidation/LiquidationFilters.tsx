@@ -12,6 +12,10 @@ interface Distributor {
   phone?: string;
 }
 
+interface LiquidationFiltersProps {
+  setSearchQuery: (query: string) => void;
+}
+
 const LiquidationFilters: React.FC<LiquidationFiltersProps> = ({ setSearchQuery }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);

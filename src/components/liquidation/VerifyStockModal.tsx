@@ -29,6 +29,19 @@ const convertToMainUnit = (value: number, unit: string): { value: number; unit: 
   }
   return { value, unit };
 };
+
+const convertInputToUnits = (inputValue: number, inputType: 'units' | 'cases' | 'bags', sku: SKU): number => {
+  if (inputType === 'units') {
+    return inputValue;
+  } else if (inputType === 'cases') {
+    const caseSize = sku.case_size || 1;
+    return inputValue * caseSize;
+  } else if (inputType === 'bags') {
+    const bagSize = sku.bag_size || 1;
+    return inputValue * bagSize;
+  }
+  return inputValue;
+};
 interface SKU {
   productCode: string | null | undefined;
   skuCode: string;
@@ -39,6 +52,8 @@ interface SKU {
   currentStock: number;
   liquidated: number;
   unitPrice: number;
+  case_size?: number;
+  bag_size?: number;
 }
 
 interface Product {
@@ -465,7 +480,11 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
         const key = `${product.productCode}-${sku.skuCode}`;
         const inputValue = stockInputs.get(key);
         if (inputValue) {
-          const newStock = parseInt(inputValue);
+          const inputNum = parseInt(inputValue);
+          // Always use bags for Kg SKUs, cases for Ltr SKUs
+          const displayUnit = convertToMainUnit(sku.currentStock, sku.unit).unit;
+          const inputType = displayUnit.toLowerCase().includes('kg') ? 'bags' : 'cases';
+          const newStock = convertInputToUnits(inputNum, inputType, sku);
           if (!isNaN(newStock) && newStock !== sku.currentStock) {
             skusToProcess.push({ product, sku, newStock });
           }
@@ -561,10 +580,10 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
       allSKUsToProcess.forEach(item => {
         const key = `${item.product.productCode}-${item.sku.skuCode}`;
         const difference = Math.abs(item.sku.currentStock - item.newStock);
-        const farmerQty = parseInt(skuFarmerQuantities.get(key) || '0') || 0;
         const retailers = skuRetailers.get(key) || [];
         const actualRetailers = retailers.filter(r => r.id && r.id !== 'manual-entry');
         const retailerTotal = actualRetailers.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+        const farmerQty = Math.max(0, difference - retailerTotal);
         const total = farmerQty + retailerTotal;
         console.log(skuRetailers)
         if (total !== difference) {
@@ -604,7 +623,6 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
         distributorName,
         productEntries: allSKUsToProcess.map(({ product, sku, newStock }) => {
           const key = `${product.productCode}-${sku.skuCode}`;
-          const farmerQty = parseInt(skuFarmerQuantities.get(key) || '0') || 0;
           const currentRetailers = skuRetailers.get(key) || [];
 
           // Filter out manual entry AND any rows where retailer wasn't selected or quantity is invalid
@@ -614,6 +632,10 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
               retailerId: r.id,
               quantity: parseInt(r.quantity),
             }));
+
+          const retailerTotal = validRetailerAllocations.reduce((sum, r) => sum + r.quantity, 0);
+          const difference = Math.abs(sku.currentStock - newStock);
+          const farmerQty = Math.max(0, difference - retailerTotal);
 
           return {
             productCode: sku.productCode, // Make sure this is the correct code your API expects
@@ -1158,15 +1180,27 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                         </div>
                                       </td>
                                       <td className="px-2 sm:px-6 py-2 sm:py-3">
-                                        <input
-                                          type="number"
-                                          step="1"
-                                          min="0"
-                                          placeholder="0"
-                                          className="w-16 sm:w-32 px-1.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-2 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                          onChange={(e) => handleStockInput(product.productCode, sku.skuCode, e.target.value, sku.currentStock)}
-                                          value={stockInputs.get(key) || ''}
-                                        />
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              step="1"
+                                              min="0"
+                                              placeholder="0"
+                                              className="w-16 sm:w-24 px-1.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-2 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                              onChange={(e) => handleStockInput(product.productCode, sku.skuCode, e.target.value, sku.currentStock)}
+                                              value={stockInputs.get(key) || ''}
+                                            />
+                                            <span className="text-xs sm:text-sm font-medium text-gray-700">
+                                              {displayStock.unit.toLowerCase().includes('kg') ? 'Bag(s)' : 'Case(s)'}
+                                            </span>
+                                          </div>
+                                          {stockInputs.get(key) && Number(stockInputs.get(key)) > 0 && (
+                                            <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                                              ({Number(stockInputs.get(key)) * (displayStock.unit.toLowerCase().includes('kg') ? (sku.bag_size || 50) : (sku.case_size || 12))} {displayStock.unit})
+                                            </div>
+                                          )}
+                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -1340,6 +1374,10 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                               <tr>
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Product / SKU</th>
                                 <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Last Visit Stock</th>
+                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600">
+                                  <div>New Sales</div>
+                                  <div className="font-normal text-[10px]">(after last visit)</div>
+                                </th>
                                 <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Current</th>
                                 <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Liquidated</th>
                               </tr>
@@ -1347,10 +1385,15 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                             <tbody className="bg-white divide-y divide-gray-200">
                               {allSKUsToProcess.map((itemMap, idx) => {
                                 const keyMap = `${itemMap.product.productCode}-${itemMap.sku.skuCode}`;
-                                const difference = Math.abs(itemMap.sku.currentStock - itemMap.newStock);
-                                const displayCurrent = convertToMainUnit(itemMap.sku.currentStock, itemMap.sku.unit);
-                                const displayNew = convertToMainUnit(itemMap.newStock, itemMap.sku.unit);
-                                const displayDiff = convertToMainUnit(difference, itemMap.sku.unit);
+                                const lastVisitStock = itemMap.sku.currentStock;
+                                const newSales = Math.max(0, itemMap.newStock - lastVisitStock);
+                                const currentStock = itemMap.newStock;
+                                const liquidated = Math.max(0, lastVisitStock + newSales - currentStock);
+
+                                const displayLastVisit = convertToMainUnit(lastVisitStock, itemMap.sku.unit);
+                                const displayNewSales = convertToMainUnit(newSales, itemMap.sku.unit);
+                                const displayCurrent = convertToMainUnit(currentStock, itemMap.sku.unit);
+                                const displayLiquidated = convertToMainUnit(liquidated, itemMap.sku.unit);
 
                                 return (
                                   <tr key={keyMap} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -1359,16 +1402,20 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                       <div className="text-xs text-gray-500">{itemMap.sku.skuName} • {itemMap.sku.skuCode}</div>
                                     </td>
                                     <td className="px-3 py-2 text-center">
-                                      <div className="text-sm font-bold text-gray-900">{displayCurrent.value.toFixed(2)}</div>
-                                      <div className="text-xs text-gray-500">{displayCurrent.unit}</div>
+                                      <div className="text-sm font-bold text-gray-900">{displayLastVisit.value.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">{displayLastVisit.unit}</div>
                                     </td>
                                     <td className="px-3 py-2 text-center">
-                                      <div className="text-sm font-bold text-green-600">{displayNew.value.toFixed(2)}</div>
-                                      <div className="text-xs text-gray-500">{displayNew.unit}</div>
+                                      <div className="text-sm font-bold text-gray-900">{displayNewSales.value.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">{displayNewSales.unit}</div>
                                     </td>
                                     <td className="px-3 py-2 text-center">
-                                      <div className="text-sm font-bold text-green-600">{displayDiff.value.toFixed(2)}</div>
-                                      <div className="text-xs text-gray-500">{displayDiff.unit}</div>
+                                      <div className="text-sm font-bold text-green-600">{displayCurrent.value.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">{displayCurrent.unit} ({currentStock} units)</div>
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <div className="text-sm font-bold text-green-600">{displayLiquidated.value.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">{displayLiquidated.unit}</div>
                                     </td>
                                   </tr>
                                 );
@@ -1385,9 +1432,9 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                           {allSKUsToProcess.map((itemMap, idx) => {
                             const keyMap = `${itemMap.product.productCode}-${itemMap.sku.skuCode}`;
                             const difference = Math.abs(itemMap.sku.currentStock - itemMap.newStock);
-                            const farmerQty = parseFloat(skuFarmerQuantities.get(keyMap) || '0') || 0;
                             const retailersMap = skuRetailers.get(keyMap) || [];
                             const retailerTotal = retailersMap.reduce((sum, r) => sum + (parseFloat(r.quantity) || 0), 0);
+                            const farmerQty = Math.max(0, difference - retailerTotal);
                             const total = farmerQty + retailerTotal;
                             const displayDiff = convertToMainUnit(difference, itemMap.sku.unit);
                             const isFullyAllocated = Math.abs(total - difference) < 0.01 && total > 0;
@@ -1409,31 +1456,6 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                      Farmer Allocation
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      placeholder="Enter Farmer Quantity"
-                                      value={skuFarmerQuantities.get(keyMap) || ''}
-                                      onChange={(e) => {
-                                        const newMap = new Map(skuFarmerQuantities);
-                                        newMap.set(keyMap, e.target.value);
-                                        setSkuFarmerQuantities(newMap);
-                                      }}
-                                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    {farmerQty > 0 && farmerQty < difference && (
-                                      <div className="mt-1.5 flex items-center gap-1 text-xs text-orange-600">
-                                        <AlertTriangle className="w-3.5 h-3.5" />
-                                        <span>Remaining: {(difference - farmerQty - retailerTotal).toFixed(2)} {itemMap.sku.unit}</span>
-                                      </div>
-                                    )}
-                                  </div>
-
                                   <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                       <label className="block text-sm font-medium text-gray-700">
@@ -1547,6 +1569,18 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                         <span>Remaining: {(difference - farmerQty - retailerTotal).toFixed(2)} {itemMap.sku.unit}</span>
                                       </div>
                                     )}
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                      Farmer Allocation
+                                    </label>
+                                    <div className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-gray-700 font-medium">
+                                      {(difference - retailerTotal).toFixed(2)} {itemMap.sku.unit}
+                                    </div>
+                                    <div className="mt-1.5 text-xs text-gray-600">
+                                      Balance after retailer allocations
+                                    </div>
                                   </div>
                                 </div>
                             </div>
@@ -1759,8 +1793,11 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                   const key = `${product.productCode}-${sku.skuCode}`;
                                   const difference = Math.abs(sku.currentStock - newStock);
                                   const isDecrease = newStock < sku.currentStock ? "Outward" : "Return";
-                                  const farmerQty = parseInt(skuFarmerQuantities.get(key) || "0") || 0;
                                   const retailers = skuRetailers.get(key) || [];
+                                  const retailerTotal = retailers
+                                    .filter((r) => r.id !== "manual-entry")
+                                    .reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+                                  const farmerQty = Math.max(0, difference - retailerTotal);
 
                                   const retailerDetails =
                                     retailers.length > 0
@@ -2021,8 +2058,11 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                                   const key = `${product.productCode}-${sku.skuCode}`;
                                   const difference = Math.abs(sku.currentStock - newStock);
                                   const isDecrease = newStock < sku.currentStock ? "Outward" : "Return";
-                                  const farmerQty = parseInt(skuFarmerQuantities.get(key) || "0") || 0;
                                   const retailers = skuRetailers.get(key) || [];
+                                  const retailerTotal = retailers
+                                    .filter((r) => r.id !== "manual-entry")
+                                    .reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+                                  const farmerQty = Math.max(0, difference - retailerTotal);
 
                                   const retailerDetails =
                                     retailers.length > 0
@@ -2189,11 +2229,11 @@ export const VerifyStockModal: React.FC<VerifyStockModalProps> = ({
                         allSKUsToProcess.forEach(item => {
                           const key = `${item.product.productCode}-${item.sku.skuCode}`;
                           const difference = Math.abs(item.sku.currentStock - item.newStock);
-                          const farmerQty = parseInt(skuFarmerQuantities.get(key) || '0') || 0;
                           const retailers = skuRetailers.get(key) || [];
                           // Exclude manual-entry from retailer total calculation
                           const actualRetailers = retailers.filter(r => r.id !== 'manual-entry');
                           const retailerTotal = actualRetailers.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+                          const farmerQty = Math.max(0, difference - retailerTotal);
                           const total = farmerQty + retailerTotal;
 
                           if (total !== difference) {

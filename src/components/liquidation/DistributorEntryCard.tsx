@@ -18,7 +18,6 @@ interface DistributorEntryCardProps {
   territory: string;
   updated: string;
   status: string;
-  priority: string;
   metrics: DistributorMetrics;
   onVerifyStock: () => void;
   onViewDetails: (metric: string) => void;
@@ -31,7 +30,6 @@ export const DistributorEntryCard: React.FC<DistributorEntryCardProps> = ({
   territory,
   updated,
   status,
-  priority,
   metrics,
   onVerifyStock,
   onViewDetails
@@ -99,14 +97,6 @@ export const DistributorEntryCard: React.FC<DistributorEntryCardProps> = ({
     return `${year}/${month}/${day} / ${hours}:${minutes}:${seconds}`;
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'text-red-600';
-      case 'Medium': return 'text-yellow-600';
-      case 'Low': return 'text-green-600';
-      default: return 'text-gray-600';
-    }
-  };
 
   const getLiquidationColor = (percentage: number) => {
     if (percentage >= 50) return 'text-green-600';
@@ -158,9 +148,6 @@ export const DistributorEntryCard: React.FC<DistributorEntryCardProps> = ({
             'bg-yellow-100 text-yellow-700'
           }`}>
             {status}
-          </span>
-          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(priority)}`}>
-            {priority}
           </span>
         </div>
       </div>

@@ -162,7 +162,61 @@ export const saveStockVerification = async (data: VerificationData) => {
       }
     }
 
-    // 4. Create stock transfer records for allocations
+    // 4. Save to stock_verification_history
+    const skusChecked = data.skuVerifications.map(sku => {
+      const allocation = data.allocations[sku.id] || { farmer: 0, retailers: [] };
+      return {
+        sku_code: sku.sku_code,
+        sku_name: sku.sku_name,
+        product_name: sku.product_name,
+        product_code: sku.product_code || sku.sku_code.split('-')[0],
+        unit: sku.unit,
+        old_stock: sku.previous_stock,
+        new_stock: sku.verified_stock,
+        difference: sku.verified_stock - sku.previous_stock,
+        farmer_allocation: allocation.farmer,
+        retailer_allocation: sku.verified_stock - allocation.farmer,
+        allocated_retailers: allocation.retailers.map(r => ({
+          name: r.name,
+          amount: r.amount
+        }))
+      };
+    });
+
+    // Only save if we have SKUs to verify
+    if (skusChecked.length > 0) {
+      const { error: historyError } = await supabase
+        .from('stock_verification_history')
+        .insert({
+          verification_date: new Date().toISOString(),
+          retailer_id: data.retailerId,
+          retailer_name: data.retailerName,
+          distributor_id: data.distributorId || null,
+          distributor_name: data.distributorName || null,
+          skus_checked: skusChecked,
+          total_skus_count: data.skuVerifications.length,
+          verified_by_id: currentUser.id || recordedBy || 'unknown',
+          verified_by_name: recordedBy || 'Unknown',
+          verified_by_role: recordedByRole || 'Staff',
+          proof_type: data.signature && proofDocuments.length > 0 ? 'both' : data.signature ? 'signature' : 'photo',
+          signature_image: data.signature || null,
+          proof_photos: proofDocuments.filter(p => p.type === 'photo'),
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          notes: `Verified ${data.skuVerifications.length} SKUs`
+        });
+
+      if (historyError) {
+        console.error('Error saving verification history:', historyError);
+        console.error('History error details:', JSON.stringify(historyError, null, 2));
+      } else {
+        console.log('✅ Verification history saved successfully');
+      }
+    } else {
+      console.warn('No SKUs to save to verification history');
+    }
+
+    // 5. Create stock transfer records for allocations
     const stockTransfers = [];
     for (const [skuId, allocation] of Object.entries(data.allocations)) {
       const sku = data.skuVerifications.find(s => s.id === skuId);
@@ -192,15 +246,15 @@ export const saveStockVerification = async (data: VerificationData) => {
         });
       }
 
-      // Retailer allocations
+      // Retailer allocations - FROM DISTRIBUTOR TO RETAILER
       for (const retailerAlloc of allocation.retailers) {
         if (retailerAlloc.amount > 0) {
           stockTransfers.push({
-            transfer_type: 'retailer_return',
+            transfer_type: 'distributor_to_retailer',
             transfer_date: new Date().toISOString(),
-            from_entity_type: 'retailer',
-            from_entity_id: data.retailerId,
-            from_entity_name: data.retailerName,
+            from_entity_type: 'distributor',
+            from_entity_id: data.distributorId || data.retailerId,
+            from_entity_name: data.distributorName || data.retailerName,
             to_entity_type: 'retailer',
             to_entity_id: 'RETAILER_' + retailerAlloc.name.replace(/\s/g, '_').toUpperCase(),
             to_entity_name: retailerAlloc.name,
@@ -213,7 +267,7 @@ export const saveStockVerification = async (data: VerificationData) => {
             latitude: data.latitude,
             longitude: data.longitude,
             recorded_by: recordedBy,
-            notes: 'Stock transfer during verification'
+            notes: 'Stock allocated from distributor to retailer during verification'
           });
         }
       }
@@ -226,6 +280,61 @@ export const saveStockVerification = async (data: VerificationData) => {
 
       if (transferError) {
         console.error('Error creating stock transfers:', transferError);
+      }
+
+      // Update retailer_inventory for allocated retailers
+      for (const [skuId, allocation] of Object.entries(data.allocations)) {
+        const sku = data.skuVerifications.find(s => s.id === skuId);
+        if (!sku) continue;
+
+        for (const retailerAlloc of allocation.retailers) {
+          if (retailerAlloc.amount > 0) {
+            const retailerId = 'RETAILER_' + retailerAlloc.name.replace(/\s/g, '_').toUpperCase();
+
+            // Try to get existing inventory
+            const { data: existingInventory } = await supabase
+              .from('retailer_inventory')
+              .select('*')
+              .eq('retailer_id', retailerId)
+              .eq('sku_code', sku.sku_code)
+              .maybeSingle();
+
+            if (existingInventory) {
+              // Update existing inventory
+              await supabase
+                .from('retailer_inventory')
+                .update({
+                  current_stock: existingInventory.current_stock + retailerAlloc.amount,
+                  total_received: existingInventory.total_received + retailerAlloc.amount,
+                  last_received_quantity: retailerAlloc.amount,
+                  last_received_date: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', existingInventory.id);
+            } else {
+              // Create new inventory record
+              await supabase
+                .from('retailer_inventory')
+                .insert({
+                  retailer_id: retailerId,
+                  retailer_name: retailerAlloc.name,
+                  retailer_business_name: retailerAlloc.name,
+                  retailer_location: data.retailerLocation || 'Unknown',
+                  distributor_id: data.distributorId,
+                  distributor_name: data.distributorName,
+                  product_code: sku.product_code || sku.sku_code.split('-')[0],
+                  product_name: sku.product_name,
+                  sku_code: sku.sku_code,
+                  sku_name: sku.sku_name,
+                  current_stock: retailerAlloc.amount,
+                  unit: sku.unit,
+                  total_received: retailerAlloc.amount,
+                  last_received_quantity: retailerAlloc.amount,
+                  last_received_date: new Date().toISOString()
+                });
+            }
+          }
+        }
       }
     }
 

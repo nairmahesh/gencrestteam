@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
-  USE_MOCK_DATA: false,
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  USE_MOCK_DATA: true,
+  API_BASE_URL: import.meta.env.VITE_API_URL || 'https://api.example.com',
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
 };

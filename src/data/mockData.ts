@@ -377,7 +377,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     category: 'Fertilizer',
     skus: [
       {
-        name: 'DAP 25kg Bag',
+        name: 'DAP 25 Kg',
         code: 'DAP-25KG',
         unit: 'Kg',
         openingStock: 2500,
@@ -390,7 +390,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
         ]
       },
       {
-        name: 'DAP 50kg Bag',
+        name: 'DAP 50 Kg',
         code: 'DAP-50KG',
         unit: 'Kg',
         openingStock: 5000,
@@ -404,13 +404,13 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     ]
   },
   {
-    productName: 'NPK (Nitrogen Phosphorus Potassium)',
-    productCode: 'NPK',
+    productName: 'MOP (Muriate of Potash)',
+    productCode: 'MOP',
     category: 'Fertilizer',
     skus: [
       {
-        name: 'NPK 12:32:16 - 25kg',
-        code: 'NPK-12-32-16-25KG',
+        name: 'MOP 25 Kg',
+        code: 'MOP-25KG',
         unit: 'Kg',
         openingStock: 1800,
         currentStock: 1200,
@@ -420,8 +420,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
         ]
       },
       {
-        name: 'NPK 12:32:16 - 50kg',
-        code: 'NPK-12-32-16-50KG',
+        name: 'MOP 50 Kg',
+        code: 'MOP-50KG',
         unit: 'Kg',
         openingStock: 3500,
         currentStock: 2400,
@@ -438,7 +438,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     category: 'Fertilizer',
     skus: [
       {
-        name: 'Urea 45kg Bag',
+        name: 'Urea 45 Kg',
         code: 'UREA-45KG',
         unit: 'Kg',
         openingStock: 4000,
@@ -447,6 +447,89 @@ export const MOCK_PRODUCTS: MockProduct[] = [
           { invoiceDate: '2024-12-17', type: 'Sale', quantity: 150, value: 202500 },
           { invoiceDate: '2024-12-13', type: 'Sale', quantity: 100, value: 135000 },
           { invoiceDate: '2024-12-07', type: 'Sale', quantity: 200, value: 270000 }
+        ]
+      },
+      {
+        name: 'Urea 50 Kg',
+        code: 'UREA-50KG',
+        unit: 'Kg',
+        openingStock: 3000,
+        currentStock: 2100,
+        transactions: [
+          { invoiceDate: '2024-12-17', type: 'Sale', quantity: 100, value: 150000 },
+          { invoiceDate: '2024-12-13', type: 'Sale', quantity: 80, value: 120000 }
+        ]
+      }
+    ]
+  },
+  {
+    productName: 'SSP (Single Super Phosphate)',
+    productCode: 'SSP',
+    category: 'Fertilizer',
+    skus: [
+      {
+        name: 'SSP 50 Kg',
+        code: 'SSP-50KG',
+        unit: 'Kg',
+        openingStock: 2500,
+        currentStock: 1700,
+        transactions: [
+          { invoiceDate: '2024-12-16', type: 'Sale', quantity: 80, value: 128000 },
+          { invoiceDate: '2024-12-11', type: 'Sale', quantity: 60, value: 96000 }
+        ]
+      }
+    ]
+  },
+  {
+    productName: 'NPK 12-32-16',
+    productCode: 'NPK-12-32-16',
+    category: 'Fertilizer',
+    skus: [
+      {
+        name: 'NPK 12-32-16 50 Kg',
+        code: 'NPK-12-32-16-50KG',
+        unit: 'Kg',
+        openingStock: 3000,
+        currentStock: 2200,
+        transactions: [
+          { invoiceDate: '2024-12-15', type: 'Sale', quantity: 80, value: 176000 },
+          { invoiceDate: '2024-12-10', type: 'Sale', quantity: 60, value: 132000 }
+        ]
+      }
+    ]
+  },
+  {
+    productName: 'NPK 10-26-26',
+    productCode: 'NPK-10-26-26',
+    category: 'Fertilizer',
+    skus: [
+      {
+        name: 'NPK 10-26-26 50 Kg',
+        code: 'NPK-10-26-26-50KG',
+        unit: 'Kg',
+        openingStock: 2800,
+        currentStock: 2000,
+        transactions: [
+          { invoiceDate: '2024-12-14', type: 'Sale', quantity: 70, value: 147000 },
+          { invoiceDate: '2024-12-09', type: 'Sale', quantity: 50, value: 105000 }
+        ]
+      }
+    ]
+  },
+  {
+    productName: 'NPK 20-20-0-13',
+    productCode: 'NPK-20-20-0-13',
+    category: 'Fertilizer',
+    skus: [
+      {
+        name: 'NPK 20-20-0-13 50 Kg',
+        code: 'NPK-20-20-0-13-50KG',
+        unit: 'Kg',
+        openingStock: 2500,
+        currentStock: 1800,
+        transactions: [
+          { invoiceDate: '2024-12-13', type: 'Sale', quantity: 60, value: 126000 },
+          { invoiceDate: '2024-12-08', type: 'Sale', quantity: 50, value: 105000 }
         ]
       }
     ]

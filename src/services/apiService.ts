@@ -436,61 +436,80 @@ export const liquidationApiService = {
           }
         ],
 
-        "liquidations": [
-          {
-            "id": "LIQ-2024-001",
-            "date": "2024-10-05",
-            "products": "Pesticide Mix",
-            "quantity": 250,
-            "value": 22500,
-            "proofType": "E-Signature",
-            "liquidatedBy": "Rajesh Kumar (MDO)",
-            "liquidatedAt": "2024-10-05 14:30:00",
-            "verifiedBy": "Priya Sharma",
-            "verifiedDesignation": "TSM",
-            "verifiedAt": "2024-10-05 16:45:00",
-            "status": "Verified",
-            "proofData": {
-              "type": "esignature",
-              "signatureImage": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=500&h=300&fit=crop",
-              "signerName": "Venkat Reddy",
-              "signerDesignation": "Proprietor",
-              "signerLocation": "Hyderabad, Telangana",
-              "timestamp": "2024-10-05 14:30:00",
-              "gencrestStaffName": "Rajesh Kumar",
-              "gencrestStaffDesignation": "MDO"
+        "liquidation": await (async () => {
+          try {
+            // Fetch verification history for this distributor
+            const { data: verificationHistory, error: histError } = await supabase
+              .from('stock_verification_history')
+              .select('*')
+              .eq('distributor_id', distributorCode)
+              .order('verification_date', { ascending: false });
+
+            if (histError) {
+              console.error('Error fetching verification history:', histError);
+              return [];
             }
-          },
-          {
-            "id": "LIQ-2024-002",
-            "date": "2024-09-28",
-            "products": "Seed Pack A, Fertilizer",
-            "quantity": 400,
-            "value": 38000,
-            "proofType": "Photo + E-Signature",
-            "liquidatedBy": "Rajesh Kumar (MDO)",
-            "liquidatedAt": "2024-09-28 11:20:00",
-            "verifiedBy": "Priya Sharma",
-            "verifiedDesignation": "TSM",
-            "verifiedAt": "2024-09-28 15:30:00",
-            "status": "Verified",
-            "proofData": {
-              "type": "photo_esignature",
-              "photos": [
-                "https://images.pexels.com/photos/7489063/pexels-photo-7489063.jpeg?auto=compress&cs=tinysrgb&w=800",
-                "https://images.pexels.com/photos/416179/pexels-photo-416179.jpeg?auto=compress&cs=tinysrgb&w=800",
-                "https://images.pexels.com/photos/1595385/pexels-photo-1595385.jpeg?auto=compress&cs=tinysrgb&w=800"
-              ],
-              "signatureImage": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=500&h=300&fit=crop",
-              "signerName": "Venkat Reddy",
-              "signerDesignation": "Proprietor",
-              "signerLocation": "Hyderabad, Telangana",
-              "timestamp": "2024-09-28 11:20:00",
-              "gencrestStaffName": "Rajesh Kumar",
-              "gencrestStaffDesignation": "MDO"
+
+            if (!verificationHistory || verificationHistory.length === 0) {
+              return [];
             }
+
+            // Transform to match the expected format
+            return verificationHistory.map((vh: any) => {
+              const skusChecked = vh.skus_checked || [];
+              const photoProofs = vh.proof_photos || [];
+              const hasSignature = !!vh.signature_image;
+              const hasPhotos = photoProofs.length > 0;
+
+              // Build product summary from SKUs checked
+              const productNames = skusChecked
+                .map((sku: any) => sku.product_name)
+                .filter((name: string, idx: number, arr: string[]) => arr.indexOf(name) === idx)
+                .slice(0, 3)
+                .join(', ');
+
+              const proofType = hasSignature && hasPhotos
+                ? 'Photo + E-Signature'
+                : hasSignature
+                ? 'E-Signature'
+                : hasPhotos
+                ? 'Photo'
+                : 'None';
+
+              return {
+                id: vh.id,
+                data: vh.verification_date,
+                date: vh.verification_date,
+                products: productNames || 'Multiple SKUs',
+                skuCount: vh.total_skus_count || 0,
+                quantity: skusChecked.reduce((sum: number, sku: any) => sum + Math.abs(sku.difference || 0), 0),
+                value: 0, // Could calculate if needed
+                proofType: proofType,
+                liquidatedBy: `${vh.verified_by_name} (${vh.verified_by_role || 'Staff'})`,
+                liquidatedAt: vh.verification_date,
+                status: 'Verified',
+                proofData: {
+                  type: hasSignature && hasPhotos ? 'photo_esignature' : hasSignature ? 'esignature' : 'photo',
+                  photos: photoProofs.map((p: any) => p.url),
+                  signatureImage: vh.signature_image || null,
+                  signerName: vh.retailer_name,
+                  signerDesignation: 'Retailer',
+                  signerLocation: distributor?.address || 'N/A',
+                  timestamp: vh.verification_date,
+                  gencrestStaffName: vh.verified_by_name,
+                  gencrestStaffDesignation: vh.verified_by_role || 'Staff',
+                  skusChecked: skusChecked,
+                  latitude: vh.latitude,
+                  longitude: vh.longitude,
+                  notes: vh.notes
+                }
+              };
+            });
+          } catch (error) {
+            console.error('Error loading verification history:', error);
+            return [];
           }
-        ],
+        })(),
 
         "activityTimeline": [
           {

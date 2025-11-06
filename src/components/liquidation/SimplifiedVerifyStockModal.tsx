@@ -71,34 +71,35 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { location, getLocation } = useGeolocation();
-  const [inputType, setInputType] = useState<Record<string, 'units' | 'cases' | 'bags'>>(() => {
-    const initial: Record<string, 'units' | 'cases' | 'bags'> = {};
-    retailer.inventory.forEach(sku => {
-      initial[sku.id] = 'units';
-    });
-    return initial;
-  });
   const [inputValue, setInputValue] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
-    retailer.inventory.forEach(sku => {
-      initial[sku.id] = String(sku.current_stock);
-    });
+    if (retailer?.inventory) {
+      retailer.inventory.forEach(sku => {
+        initial[sku.id] = String(sku.current_stock);
+      });
+    }
     return initial;
   });
   const [verificationData, setVerificationData] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    retailer.inventory.forEach(sku => {
-      initial[sku.id] = sku.current_stock;
-    });
+    if (retailer?.inventory) {
+      retailer.inventory.forEach(sku => {
+        initial[sku.id] = sku.current_stock;
+      });
+    }
     return initial;
   });
   const [allocations, setAllocations] = useState<Record<string, { farmer: number; retailers: { name: string; amount: number }[] }>>(() => {
     const initial: Record<string, { farmer: number; retailers: { name: string; amount: number }[] }> = {};
-    retailer.inventory.forEach(sku => {
-      initial[sku.id] = { farmer: 0, retailers: [] };
-    });
+    if (retailer?.inventory) {
+      retailer.inventory.forEach(sku => {
+        // Initially, all stock is at retailer (farmer allocation is 0)
+        initial[sku.id] = { farmer: 0, retailers: [] };
+      });
+    }
     return initial;
   });
+  const [retailerStockInput, setRetailerStockInput] = useState<Record<string, string>>({});
   const [signature, setSignature] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploadedProofs, setUploadedProofs] = useState<Array<{ id: string; type: string; name: string; url: string }>>([]);
@@ -146,6 +147,7 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
       currentStep,
       verificationData,
       allocations,
+      retailerStockInput,
       signature,
       uploadedProofs,
       timestamp: Date.now(),
@@ -153,7 +155,19 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
     };
 
     localStorage.setItem(`verification_progress_${retailer.retailer_id}`, JSON.stringify(progressData));
-  }, [currentStep, verificationData, allocations, signature, uploadedProofs, isOpen, retailer.retailer_id, retailer.retailer_name]);
+  }, [currentStep, verificationData, allocations, retailerStockInput, signature, uploadedProofs, isOpen, retailer.retailer_id, retailer.retailer_name]);
+
+  // Initialize retailer stock input when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const initial: Record<string, string> = {};
+    retailer.inventory.forEach(sku => {
+      initial[sku.id] = sku.current_stock.toString();
+    });
+    setRetailerStockInput(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, retailer.retailer_id]);
 
   // Fetch available retailers from database
   useEffect(() => {
@@ -251,7 +265,7 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showRetailerDropdown]);
+  }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });
@@ -292,7 +306,7 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
 
   if (!isOpen) return null;
 
-  const updateStock = (skuId: string, value: string, type?: 'units' | 'cases' | 'bags') => {
+  const updateStock = (skuId: string, value: string) => {
     const numValue = value === '' ? 0 : parseInt(value, 10);
     const sku = retailer.inventory.find(s => s.id === skuId);
 
@@ -301,14 +315,11 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
     // Update input value
     setInputValue(prev => ({ ...prev, [skuId]: value }));
 
-    // Update input type if provided
-    if (type) {
-      setInputType(prev => ({ ...prev, [skuId]: type }));
-    }
-
-    // Convert to actual units based on input type
-    const currentType = type || inputType[skuId];
-    const actualUnits = convertInputToUnits(isNaN(numValue) ? 0 : numValue, currentType, sku);
+    // Convert to actual units based on SKU unit type
+    // Always use bags for Kg SKUs, cases for Ltr SKUs
+    const unit = sku.unit.toLowerCase();
+    const inputType = unit.includes('kg') ? 'bags' : 'cases';
+    const actualUnits = convertInputToUnits(isNaN(numValue) ? 0 : numValue, inputType, sku);
 
     setVerificationData({
       ...verificationData,
@@ -343,51 +354,45 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
     }
   };
 
-  const updateFarmerAllocation = (skuId: string, value: string) => {
+  const updateRetailerStock = (skuId: string, value: string) => {
     const numValue = value === '' ? 0 : parseInt(value, 10);
     const sku = retailer.inventory.find(s => s.id === skuId);
     if (!sku) return;
 
-    const totalDifference = Math.abs(sku.current_stock - verificationData[skuId]);
-    const currentRetailerTotal = allocations[skuId]?.retailers.reduce((sum, r) => sum + r.amount, 0) || 0;
-    const maxAllowed = totalDifference - currentRetailerTotal;
+    const totalStock = sku.current_stock;
 
-    console.log('Farmer Allocation Validation:', {
+    // Update input state
+    setRetailerStockInput(prev => ({
+      ...prev,
+      [skuId]: value
+    }));
+
+    console.log('Retailer Stock Update:', {
       skuName: sku.sku_name,
-      currentStock: sku.current_stock,
-      newStock: verificationData[skuId],
-      totalDifference,
-      numValue,
-      currentRetailerTotal,
-      maxAllowed,
-      willExceed: numValue > maxAllowed
+      currentStock: totalStock,
+      retailerStock: numValue,
+      farmerAllocation: totalStock - numValue
     });
 
-    if (!isNaN(numValue) && numValue > maxAllowed) {
-      const displayMax = convertToMainUnit(maxAllowed, sku.unit);
-      const displayTotal = convertToMainUnit(totalDifference, sku.unit);
-      if (currentRetailerTotal > 0) {
-        const displayRetailer = convertToMainUnit(currentRetailerTotal, sku.unit);
-        showNotification(
-          `Cannot allocate more than ${displayMax.value.toFixed(0)} ${displayMax.unit} to farmer. Total liquidated: ${displayTotal.value.toFixed(0)} ${displayTotal.unit}, Already allocated to retailers: ${displayRetailer.value.toFixed(0)} ${displayRetailer.unit}.`,
-          'error'
-        );
-      } else {
-        showNotification(
-          `Cannot allocate more than ${displayMax.value.toFixed(0)} ${displayMax.unit} to farmer. Total liquidated is ${displayTotal.value.toFixed(0)} ${displayTotal.unit}.`,
-          'error'
-        );
-      }
+    if (!isNaN(numValue) && numValue > totalStock) {
+      const displayTotal = convertToMainUnit(totalStock, sku.unit);
+      showNotification(
+        `Stock at retailer cannot exceed total stock of ${displayTotal.value.toFixed(0)} ${displayTotal.unit}.`,
+        'error'
+      );
       return;
     }
 
-    setAllocations({
-      ...allocations,
+    // Auto-calculate farmer allocation as the remaining stock
+    const farmerAllocation = totalStock - numValue;
+
+    setAllocations(prev => ({
+      ...prev,
       [skuId]: {
-        ...allocations[skuId],
-        farmer: isNaN(numValue) ? 0 : numValue
+        retailers: [],
+        farmer: isNaN(farmerAllocation) ? 0 : farmerAllocation
       }
-    });
+    }));
   };
 
   const addRetailerAllocation = (skuId: string, retailerName: string, amount: number) => {
@@ -562,6 +567,7 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
   };
 
   if (!isOpen) return null;
+  if (!retailer || !retailer.inventory || retailer.inventory.length === 0) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -651,10 +657,6 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
                 <span className="font-medium">#</span>
                 <span className="font-medium">Code: {retailer.retailer_id}</span>
               </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <Check className="w-4 h-4" />
-                <span className="font-medium">Location Verified</span>
-              </div>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-orange-600">
@@ -702,8 +704,8 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
                         <div className="text-lg font-bold text-gray-900">{displayCurrent.value.toFixed(0)} <span className="text-sm font-normal text-gray-600">{displayCurrent.unit}</span></div>
                         <div className="text-xs text-gray-500">Value: ₹{(sku.current_stock * 720 / 1000).toFixed(2)}K</div>
                       </div>
-                      <div className="relative">
-                        <div className="flex gap-2 items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
                           <input
                             type="text"
                             inputMode="numeric"
@@ -713,47 +715,25 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
                               const value = e.target.value.replace(/[^0-9]/g, '');
                               updateStock(sku.id, value);
                             }}
-                            className={`w-24 px-3 py-2.5 text-base font-medium border-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            className={`w-24 px-3 py-2.5 text-base font-medium border-2 rounded focus:ring-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                               isDecreased ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
                             }`}
                           />
-                          <select
-                            value={inputType[sku.id]}
-                            onChange={(e) => {
-                              const newType = e.target.value as 'units' | 'cases' | 'bags';
-                              updateStock(sku.id, inputValue[sku.id], newType);
-                            }}
-                            className="px-2 py-2.5 text-sm border-2 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="units">{displayCurrent.unit}</option>
-                            {sku.case_size && sku.case_size > 0 && (
-                              <option value="cases">Cases</option>
-                            )}
-                            {sku.bag_size && sku.bag_size > 0 && (
-                              <option value="bags">Bags</option>
-                            )}
-                          </select>
+                          <span className="text-sm font-medium text-gray-700">
+                            {displayCurrent.unit.toLowerCase().includes('kg') ? 'Bag(s)' : 'Case(s)'}
+                          </span>
                         </div>
-                        {inputType[sku.id] !== 'units' && (
-                          <div className="text-xs text-gray-600 mt-1">
-                            <span className="font-medium">
-                              {inputValue[sku.id]} {inputType[sku.id]} = {verificationData[sku.id]} {displayCurrent.unit}
-                            </span>
-                            {inputType[sku.id] === 'cases' && sku.case_size && (
-                              <span className="text-gray-500 ml-1">
-                                (1 case = {sku.case_size} {displayCurrent.unit})
-                              </span>
-                            )}
-                            {inputType[sku.id] === 'bags' && sku.bag_size && (
-                              <span className="text-gray-500 ml-1">
-                                (1 bag = {sku.bag_size} {displayCurrent.unit})
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {/* Show conversion text below input */}
+                        <div className="text-xs mt-1 min-h-[18px] mb-1">
+                          {inputValue[sku.id] && Number(inputValue[sku.id]) > 0 ? (
+                            <div className="text-gray-500">
+                              ({verificationData[sku.id]} {displayCurrent.unit})
+                            </div>
+                          ) : null}
+                        </div>
                         {isDecreased && (
-                          <div className="absolute top-full mt-1 text-xs font-medium text-red-600 whitespace-nowrap">
-                            <span className="text-red-600">↓ {Math.abs(difference)}</span>
+                          <div className="text-xs font-medium text-red-600 mt-1">
+                            <span className="text-red-600">↓ {Math.abs(difference)} {displayCurrent.unit}</span>
                             <div className="text-red-700">Stock Decreased (Liquidation)</div>
                           </div>
                         )}
@@ -775,12 +755,12 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
                 const displayNew = convertToMainUnit(verificationData[sku.id], sku.unit);
                 const difference = verificationData[sku.id] - sku.current_stock;
                 const isDecreased = difference < 0;
-                const totalLiquidated = Math.abs(difference);
+                const totalStock = sku.current_stock;
                 const farmerAllocation = allocations[sku.id]?.farmer || 0;
-                const displayTotalLiquidated = convertToMainUnit(totalLiquidated, sku.unit);
+                const retailerStock = totalStock - farmerAllocation;
+                const displayTotalLiquidated = convertToMainUnit(totalStock, sku.unit);
                 const displayFarmerAllocation = convertToMainUnit(farmerAllocation, sku.unit);
-                const remainingAtRetailer = totalLiquidated - farmerAllocation;
-                const displayRemainingAtRetailer = convertToMainUnit(remainingAtRetailer, sku.unit);
+                const displayRetailerStock = convertToMainUnit(retailerStock, sku.unit);
 
                 if (!isDecreased) return null;
 
@@ -792,41 +772,47 @@ export const SimplifiedVerifyStockModal: React.FC<SimplifiedVerifyStockModalProp
                         <p className="text-sm text-gray-600">{sku.sku_name} ({sku.sku_code})</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-600">Total Allocated</div>
-                        <div className="text-xl font-bold text-red-600">
+                        <div className="text-sm text-gray-600">Total Balance Stock</div>
+                        <div className="text-xl font-bold text-blue-600">
                           {displayTotalLiquidated.value.toFixed(2)} {displayTotalLiquidated.unit}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Farmer Allocation Input */}
-                      <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                        <label className="block text-sm font-bold text-green-900 mb-2">Farmer Allocation</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Retailer Allocations */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Retailer Allocations
+                        </label>
                         <input
                           type="text"
                           inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={farmerAllocation}
+                          pattern="[0-9.]*"
+                          value={retailerStockInput[sku.id] || ''}
                           onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, '');
-                            updateFarmerAllocation(sku.id, value);
+                            const value = e.target.value.replace(/[^0-9.]/g, '');
+                            updateRetailerStock(sku.id, value);
                           }}
                           placeholder="0"
-                          className="w-full px-4 py-3 text-lg font-bold border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         />
-                        <div className="text-xs text-green-700 mt-2">
-                          {displayFarmerAllocation.value.toFixed(2)} {displayFarmerAllocation.unit}
+                        <div className="mt-1.5 text-xs text-gray-600">
+                          Stock remaining at retailer ({displayRetailerStock.value.toFixed(2)} {displayRetailerStock.unit})
                         </div>
                       </div>
 
-                      {/* Stock at Retailer Display - Auto-calculated */}
-                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                        <label className="block text-sm font-bold text-blue-900 mb-2">Stock at Retailer</label>
-                        <div className="text-3xl font-bold text-blue-700">
-                          {displayRemainingAtRetailer.value.toFixed(2)} <span className="text-lg">{displayRemainingAtRetailer.unit}</span>
+                      {/* Farmer Allocation */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Farmer Allocation
+                        </label>
+                        <div className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-gray-700 font-medium">
+                          {displayFarmerAllocation.value.toFixed(2)} {displayFarmerAllocation.unit}
                         </div>
-                        <div className="text-xs text-blue-700 mt-2">Remaining after farmer allocation</div>
+                        <div className="mt-1.5 text-xs text-gray-600">
+                          Balance after retailer allocations
+                        </div>
                       </div>
                     </div>
                   </div>

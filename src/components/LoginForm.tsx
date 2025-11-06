@@ -165,6 +165,16 @@ const LoginForm: React.FC = () => {
                 </>
               )}
             </button>
+
+            <div className="text-center mt-4">
+              <a
+                href="/admin"
+                className="text-sm text-gray-500 hover:text-gray-700 transition flex items-center justify-center gap-2"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Admin Portal
+              </a>
+            </div>
           </form>
         </div>
       </div>
