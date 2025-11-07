@@ -1,13 +1,11 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config();
 
 const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
   mongoURI: process.env.MONGO_URI as string,
-  redis: {
-    host: process.env.REDIS_HOST || "127.0.0.1",
-    port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  },
+  redisURI: process.env.REDIS_URI as string,
   aws: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
@@ -17,8 +15,8 @@ const config = {
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET as string,
     refreshSecret: process.env.JWT_REFRESH_SECRET as string,
-    accessTokenExpiresIn: '15m',
-    refreshTokenExpiresIn: '7d',
+    accessTokenExpiresIn: '3d',
+    refreshTokenExpiresIn: '15d',
   },
   clientURL: process.env.CLIENT_URL || 'http://localhost:5173'
 };

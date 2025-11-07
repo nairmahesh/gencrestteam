@@ -4,7 +4,6 @@ import { requireAuth, checkPasswordSet } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// --- Public Routes ---
 router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password/:token', authController.resetPassword);

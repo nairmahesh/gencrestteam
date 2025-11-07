@@ -1,13 +1,12 @@
 import { Schema, model, Document, PopulatedDoc } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// --- Interface for your requested fields ---
 export interface IUser extends Document {
   firstName: string;
   lastName: string;
   employeeId: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   dateOfJoining?: Date;
   isActive: boolean;
   reportingTo?: PopulatedDoc<IUser & Document>;
@@ -17,32 +16,39 @@ export interface IUser extends Document {
   state?: string;
   region?: string;
   role: string;
+
+  // --- Auth Fields ---
   password?: string;
   isPasswordSet: boolean;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
+
+  // --- Methods ---
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const userSchema = new Schema<IUser>({
   firstName: { type: String, required: true, trim: true },
   lastName: { type: String, required: true, trim: true },
-  employeeId: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  phone: { type: String, required: true, unique: true },
+  // 'unique: true' automatically creates an index
+  employeeId: { type: String, required: true, unique: true, index: true },
+  email: { type: String, lowercase: true, trim: true, index: true },
+  phone: { type: String},
   dateOfJoining: { type: Date },
   isActive: { type: Boolean, default: true },
   reportingTo: { type: Schema.Types.ObjectId, ref: 'User' },
-  zone: { type: String },
-  location: { type: String },
-  territory: { type: String },
-  state: { type: String },
-  region: { type: String },
-  role: { type: String, required: true },
+
+  // --- Added indexes as requested ---
+  zone: { type: String, index: true },
+  location: { type: String, index: true },
+  territory: { type: String, index: true },
+  state: { type: String, index: true },
+  region: { type: String, index: true },
+  role: { type: String, required: true, index: true },
   
   password: {
     type: String,
-    select: false,
+    select: false, 
   },
   isPasswordSet: {
     type: Boolean,
@@ -59,6 +65,7 @@ const userSchema = new Schema<IUser>({
   },
 });
 
+// --- Hash password before saving ---
 userSchema.pre<IUser>('save', async function (next) {
   if (!this.isModified('password')) {
     return next();

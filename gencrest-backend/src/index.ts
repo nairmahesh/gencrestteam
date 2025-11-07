@@ -7,8 +7,14 @@ import morgan from "morgan";
 import config from "./config";
 import { logger } from "./utils/logger";
 import { connectDB } from "./lib/mongoose";
-import authRoutes from './routes/auth.routes';
 import cookieParser from 'cookie-parser';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
+import authRoutes from './routes/auth.routes';
+import adminRoutes from './routes/admin.routes';
+import dashboradRoutes from './routes/dashboard.routes';
+import liquidationRoutes from './routes/liquidation.routes';
+import retailerRoutes from './routes/retailer.routes';
 const app = express();
 
 // --- Middlewares ---
@@ -24,11 +30,14 @@ if (config.nodeEnv === "development") {
 const startServer = async () => {
   try {
     await connectDB();
-    // Redis connection is handled by its own event listener in lib/redis.ts
 
-    app.get("/health", (req, res) => res.status(200).json({ status: "UP" }));
-
+    app.get("/health", (_req, res) => res.status(200).json({ status: "UP" }));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     app.use('/api/v1/auth', authRoutes);
+    app.use('/api/v1/admin', adminRoutes)
+    app.use('/api/v1/dashboard', dashboradRoutes);
+    app.use('/api/v1/liquidation', liquidationRoutes);
+    app.use('/api/v1/retailer', retailerRoutes);
 
     app.listen(config.port, () => {
       logger.info(`✅ Server is running on port ${config.port}`);

@@ -2,7 +2,7 @@ import { User, IUser } from '../models/user.model';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import config from '../config';
 import { logger } from '../utils/logger';
-import { redisConnection } from '../lib/redis';
+// import { redisConnection } from '../lib/redis';
 import crypto from 'crypto';
 
 // Custom Error
@@ -25,7 +25,7 @@ class AuthService {
    */
   public generateTokens(user: IUser): ITokens {
     const accessToken = jwt.sign(
-      { sub: user.id, role: user.role },
+      { sub: user.id, role: user.role,employeeId:user.employeeId },
       config.jwt.accessSecret,
       { expiresIn: config.jwt.accessTokenExpiresIn } as SignOptions
     );
@@ -43,7 +43,15 @@ class AuthService {
    * Handles user login
    */
   public async login(email: string, password: string): Promise<{ tokens: ITokens; user: IUser; isPasswordSet: boolean }> {
-    const user = await User.findOne({ email }).select('+password');
+    const query:Record<string, any> = {};
+    email=email.trim().toLowerCase();
+    if(email.split('@').length==1){
+      query["employeeId"]=email
+    }else{
+      query["email"]=email
+    }
+    console.log('query',query)
+    const user = await User.findOne(query).select('+password');
     
     if (!user) {
       throw new AuthError('Invalid credentials');
@@ -122,7 +130,7 @@ class AuthService {
       const expiry = payload.exp * 1000 - Date.now(); // Get expiry in ms
       
       // Store token in Redis to blocklist it until it expires
-      await redisConnection.set(`blocklist:${refreshToken}`, 'true', 'PX', expiry);
+      // await redisConnection.set(`blocklist:${refreshToken}`, 'true', 'PX', expiry);
     } catch (error) {
       logger.error({ err: error }, 'Error logging out');
     }
@@ -133,10 +141,10 @@ class AuthService {
    */
   public async refreshToken(token: string): Promise<{ accessToken: string }> {
     // Check if token is blocklisted
-    const isBlocked = await redisConnection.get(`blocklist:${token}`);
-    if (isBlocked) {
-      throw new AuthError('Token is invalid');
-    }
+    // const isBlocked = await redisConnection.get(`blocklist:${token}`);
+    // if (isBlocked) {
+    //   throw new AuthError('Token is invalid');
+    // }
 
     const payload = jwt.verify(token, config.jwt.refreshSecret) as { sub: string };
     const user = await User.findById(payload.sub);

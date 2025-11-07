@@ -2,10 +2,8 @@ import IORedis from "ioredis";
 import config from "../config";
 import { logger } from "../utils/logger";
 
-export const redisConnection = new IORedis({
-  host: config.redis.host,
-  port: config.redis.port,
-  maxRetriesPerRequest: null, // Important for BullMQ
+export const redisConnection = new IORedis(config.redisURI, {
+  maxRetriesPerRequest: null,
 });
 
 redisConnection.on("connect", () => {
