@@ -152,7 +152,7 @@ export const DistributorEntryCard: React.FC<DistributorEntryCardProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <div className="bg-orange-50 rounded-lg p-2 sm:p-3">
           <p className="text-xs text-orange-700 font-semibold mb-2">Opening Stock</p>
           <p className="text-base sm:text-lg font-bold text-orange-900">{formatCurrency(metrics.openingStock.value)}</p>
@@ -174,20 +174,6 @@ export const DistributorEntryCard: React.FC<DistributorEntryCardProps> = ({
           <p className="text-xs text-blue-600">{formatVolume(metrics.ytdNetSales.volume)}</p>
           <button
             onClick={() => onViewDetails('sales')}
-            className="mt-2 text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1"
-          >
-            <Eye className="w-3 h-3" />
-            View Details
-          </button>
-        </div>
-
-        <div className="bg-cyan-50 rounded-lg p-2 sm:p-3">
-          <p className="text-xs text-cyan-700 font-semibold mb-2">New Sales (After Last Visit)</p>
-          <p className="text-base sm:text-lg font-bold text-cyan-900">{formatCurrency(metrics.newSales?.value || 0)}</p>
-          <p className="text-xs text-cyan-600">(Rs. Lakhs)</p>
-          <p className="text-xs text-cyan-600">{formatVolume(metrics.newSales?.volume || 0)}</p>
-          <button
-            onClick={() => onViewDetails('newSales')}
             className="mt-2 text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1"
           >
             <Eye className="w-3 h-3" />
