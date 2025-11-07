@@ -1,0 +1,61 @@
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import LoginForm from './components/LoginForm';
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import FieldVisits from './pages/FieldVisits';
+import SalesOrders from './pages/SalesOrders';
+import Liquidation from './pages/Liquidation';
+import Contacts from './pages/Contacts';
+import { Planning } from './pages/Planning';
+import TravelReimbursement from './pages/TravelReimbursement';
+import Performance from './pages/Performance';
+import RetailerLiquidation from './pages/RetailerLiquidation';
+import RetailerInventory from './pages/RetailerInventory';
+import MobileAppDesign from './pages/MobileAppDesign';
+import MobileAppPage from './pages/MobileAppPage';
+import MDOModule from './pages/MDOModule';
+import UserManagement from './pages/UserManagement';
+import Approvals from './pages/Approvals';
+import DistributorDetails from './pages/DistributorDetails';
+import BusinessLogic from './pages/BusinessLogic';
+import Reports from './pages/Reports';
+import TestPage from './pages/TestPage';
+import PaginatedExample from './pages/PaginatedExample';
+
+function App() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/field-visits" element={<FieldVisits />} />
+        <Route path="/sales-orders" element={<SalesOrders />} />
+        <Route path="/liquidation" element={<Liquidation />} />
+        <Route path="/contacts" element={<Contacts />} />
+        <Route path="/planning" element={<Planning />} />
+        <Route path="/travel" element={<TravelReimbursement />} />
+        <Route path="/performance" element={<Performance />} />
+        <Route path="/retailer-liquidation/:id" element={<RetailerLiquidation />} />
+        <Route path="/retailer-inventory" element={<RetailerInventory />} />
+        <Route path="/mobile-design" element={<MobileAppDesign />} />
+        <Route path="/mobile" element={<MobileAppPage />} />
+        <Route path="/mdo-module" element={<MDOModule />} />
+        <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/approvals" element={<Approvals />} />
+        <Route path="/distributor/:id" element={<DistributorDetails />} />
+        <Route path="/business-logic" element={<BusinessLogic />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/pagination-example" element={<PaginatedExample />} />
+      </Routes>
+    </Layout>
+  );
+}
+
+export default App;
